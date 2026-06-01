@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Markov Simulation Pro</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, #1a1c2e, #0d0f1a);
+  color: white;
+}
+
+.container {
+  max-width: 1100px;
+  margin: auto;
+  padding: 30px;
+}
+
+h1 {
+  text-align: center;
+  font-size: 32px;
+  margin-bottom: 20px;
+  background: linear-gradient(90deg, #6ee7ff, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 15px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  transition: 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+textarea, input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  margin-top: 5px;
+  background: rgba(255,255,255,0.1);
+  color: white;
+}
+
+textarea {
+  height: 140px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 15px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #6ee7ff, #a78bfa);
+  color: black;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  transform: scale(1.02);
+  opacity: 0.9;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+td {
+  text-align: center;
+  padding: 6px;
+  font-size: 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+section {
+  margin-top: 25px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Markov Simulation</h1>
+
+<section class="card">
+  <label>Dictionnaire</label>
+  <textarea id="dictionary">
+bonjour
+maison
+ordinateur
+table
+chaise
+markov
+probabilite
+transition
+  </textarea>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div>
+      <label>Nombre de simulations</label>
+      <input id="numSim" type="number" value="20">
+    </div>
+
+    <div>
+      <label>Longueur maximale</label>
+      <input id="maxLetters" type="number" value="10">
+    </div>
+  </div>
+
+  <button onclick="runSimulation()">Lancer la simulation</button>
+</section>
+
+<section class="card">
+  <h2>Distribution initiale π(0)</h2>
+  <div id="pi0" class="grid"></div>
+</section>
+
+<section class="card">
+  <h2>Matrice de transition</h2>
+  <div id="matrix"></div>
+</section>
+
+<section class="card">
+  <h2>Mots générés</h2>
+  <div id="results" class="grid"></div>
+</section>
+
+</div>
+
+<script>
+function weightedChoice(items, probs) {
+  let r = Math.random();
+  let cum = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    cum += probs[i];
+    if (r <= cum) return items[i];
+  }
+  return items[items.length - 1];
+}
+
+function runSimulation() {
+
+  const dictionary = document.getElementById("dictionary").value;
+  const words = dictionary.split("\n").map(w => w.trim().toLowerCase()).filter(w => w);
+
+  const alphabet = "abcdefghijklmnopqrstuvwxyz#".split("");
+
+  const numSim = +document.getElementById("numSim").value;
+  const maxLetters = +document.getElementById("maxLetters").value;
+
+  let countInit = {};
+  alphabet.slice(0, -1).forEach(l => countInit[l] = 0);
+
+  words.forEach(w => {
+    if (countInit[w[0]] !== undefined) countInit[w[0]]++;
+  });
+
+  const total = words.length;
+  const piArray = alphabet.slice(0, -1).map(l => countInit[l] / total);
+
+  document.getElementById("pi0").innerHTML =
+    alphabet.slice(0, -1).map((l,i)=>
+      `<div class="card">${l} : ${piArray[i].toFixed(3)}</div>`
+    ).join("");
+
+  let P = Array.from({length:alphabet.length},()=>Array(alphabet.length).fill(0));
+
+  words.map(w=>w+"#").forEach(word=>{
+    for(let i=0;i<word.length-1;i++){
+      let a = alphabet.indexOf(word[i]);
+      let b = alphabet.indexOf(word[i+1]);
+      if(a!=-1 && b!=-1) P[a][b]++;
+    }
+  });
+
+  let numericP = P.map(row=>{
+    let s=row.reduce((a,b)=>a+b,0);
+    return s?row.map(v=>v/s):row;
+  });
+
+  let table = "<table>";
+  numericP.forEach(r=>{
+    table+="<tr>"+r.map(v=>`<td>${v.toFixed(2)}</td>`).join("")+"</tr>";
+  });
+  table+="</table>";
+
+  document.getElementById("matrix").innerHTML = table;
+
+  let results = [];
+
+  for(let i=0;i<numSim;i++){
+    let current = weightedChoice(alphabet.slice(0,-1), piArray);
+    let word = current;
+
+    while(current!="#"){
+      if(word.length>=maxLetters) break;
+
+      let idx = alphabet.indexOf(current);
+      let probs = numericP[idx];
+
+      if(!probs) break;
+
+      let next = weightedChoice(alphabet, probs);
+      if(next!="#") word+=next;
+      current=next;
+    }
+
+    results.push(word);
+  }
+
+  document.getElementById("results").innerHTML =
+    results.map(w=>`<div class="card">${w}</div>`).join("");
+}
+</script>
+
+</body>
+</html>
