@@ -16,10 +16,13 @@ Implements a **first-order Markov chain** to generate new words that sound like 
 
 ## Files
 
+## Files
+
 | File | Description |
 |---|---|
 | `Markov_Simulation_Project.ipynb` | Python notebook — core logic, matrix computation, word generation |
 | `Markov_Simulation.html` | Interactive browser demo — paste a dictionary, adjust parameters, generate words |
+| `demo.mp4` | Demo video of the simulation in action |
 
 ---
 
